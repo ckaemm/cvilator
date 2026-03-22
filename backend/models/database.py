@@ -53,6 +53,8 @@ class CV(Base):
     raw_text: str = Column(Text, nullable=True)
     sections: dict = Column(JSON, nullable=True)
     ats_score: int = Column(Integer, nullable=True)
+    last_analysis: dict = Column(JSON, nullable=True)
+    job_description: str = Column(Text, nullable=True)
     created_at: datetime = Column(
         DateTime, default=lambda: datetime.now(timezone.utc), nullable=False
     )

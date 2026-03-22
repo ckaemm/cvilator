@@ -66,3 +66,50 @@ class CVDetail(BaseModel):
     )
     created_at: datetime = Field(..., description="Oluşturulma tarihi")
     updated_at: datetime = Field(..., description="Son güncelleme tarihi")
+
+
+# --- ATS Analiz Şemaları ---
+
+
+class CriteriaDetail(BaseModel):
+    """Tek bir skorlama kriterinin detay modeli."""
+
+    name: str = Field(..., description="Kriter adı")
+    score: int = Field(..., description="Alınan puan")
+    max_score: int = Field(..., description="Maksimum puan")
+    feedback: str = Field(..., description="Kullanıcıya yönelik geri bildirim")
+    details: list[str] = Field(
+        default_factory=list, description="Detaylı bulgular listesi"
+    )
+
+
+class KeywordMatch(BaseModel):
+    """Keyword eşleşme detayları."""
+
+    found: list[str] = Field(default_factory=list, description="Bulunan keyword'ler")
+    missing: list[str] = Field(
+        default_factory=list, description="Eksik keyword'ler"
+    )
+    match_rate: float = Field(0.0, description="Eşleşme oranı (0.0 - 1.0)")
+
+
+class ATSScoreResponse(BaseModel):
+    """ATS skorlama yanıt modeli."""
+
+    total_score: int = Field(..., description="Toplam ATS skoru (0-100)")
+    grade: str = Field(..., description="Derece (Mükemmel/Çok İyi/İyi/Orta/Zayıf)")
+    criteria: list[CriteriaDetail] = Field(
+        ..., description="Kriter bazlı skor detayları"
+    )
+    summary: str = Field(..., description="Genel özet ve öneriler")
+    keyword_match: KeywordMatch = Field(
+        ..., description="Keyword eşleşme detayları"
+    )
+
+
+class JobDescriptionInput(BaseModel):
+    """İş ilanı girdi modeli."""
+
+    job_description: str = Field(
+        ..., min_length=10, description="İş ilanı metni"
+    )

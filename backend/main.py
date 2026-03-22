@@ -16,6 +16,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from models.database import create_tables
+from routers.analyze import router as analyze_router
 from routers.cv import router as cv_router
 
 # .env dosyasını yükle
@@ -77,6 +78,7 @@ app.add_middleware(
 
 # Router'ları ekle
 app.include_router(cv_router, prefix="/api")
+app.include_router(analyze_router, prefix="/api")
 
 
 @app.get("/", tags=["Root"])
