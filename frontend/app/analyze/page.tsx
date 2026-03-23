@@ -2,7 +2,8 @@
 
 import { useState, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { Loader2, CheckCircle2, Circle, Upload as UploadIcon } from "lucide-react";
+import Link from "next/link";
+import { Loader2, CheckCircle2, Circle, Upload as UploadIcon, Sparkles } from "lucide-react";
 import { CVUpload } from "@/components/cv-upload";
 import { JobDescriptionInput } from "@/components/job-description-input";
 import { ATSScoreCard } from "@/components/ats-score-card";
@@ -319,23 +320,30 @@ function AnalyzePageContent() {
       )}
 
       {/* Done state - optimize button */}
-      {currentStep === "done" && optimization && (
+      {currentStep === "done" && optimization && cvId && (
         <Card className="border-accent/30 animate-fade-in-up">
           <CardContent className="flex flex-col items-center gap-4 py-8">
             <CheckCircle2 className="h-10 w-10 text-green-400" />
             <p className="text-sm text-slate-300">Analiz tamamlandı!</p>
-            <Button
-              size="lg"
-              onClick={() => {
-                // Reset for re-analysis
-                setAtsResult(null);
-                setOptimization(null);
-                setCurrentStep("analyze");
-                setError(null);
-              }}
-            >
-              Yeniden Analiz Et
-            </Button>
+            <div className="flex items-center gap-3">
+              <Link href={`/optimize/${cvId}`}>
+                <Button size="lg">
+                  <Sparkles className="h-4 w-4" />
+                  Optimize Et
+                </Button>
+              </Link>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setAtsResult(null);
+                  setOptimization(null);
+                  setCurrentStep("analyze");
+                  setError(null);
+                }}
+              >
+                Yeniden Analiz Et
+              </Button>
+            </div>
           </CardContent>
         </Card>
       )}

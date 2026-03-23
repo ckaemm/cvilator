@@ -7,3 +7,4 @@ python-docx
 python-dotenv
 pydantic
 anthropic
+reportlab==4.2.0

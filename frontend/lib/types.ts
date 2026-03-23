@@ -22,6 +22,8 @@ export interface CVDetail {
   raw_text: string | null;
   sections: Record<string, string> | null;
   ats_score: number | null;
+  ai_feedback: AIFeedback | null;
+  optimized_text: string | null;
   created_at: string;
   updated_at: string;
 }

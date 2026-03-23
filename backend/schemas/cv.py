@@ -64,6 +64,12 @@ class CVDetail(BaseModel):
     ats_score: Optional[int] = Field(
         None, description="ATS uyumluluk skoru (0-100)"
     )
+    ai_feedback: Optional[dict] = Field(
+        None, description="AI geri bildirim verisi (JSON)"
+    )
+    optimized_text: Optional[str] = Field(
+        None, description="Optimize edilmiş CV metni"
+    )
     created_at: datetime = Field(..., description="Oluşturulma tarihi")
     updated_at: datetime = Field(..., description="Son güncelleme tarihi")
 

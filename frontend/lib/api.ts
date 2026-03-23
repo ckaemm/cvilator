@@ -85,3 +85,29 @@ export async function applySuggestions(
     body: JSON.stringify({ accepted_suggestions: accepted }),
   });
 }
+
+export async function downloadOptimizedCV(id: number): Promise<void> {
+  const res = await fetch(`/api/optimize/${id}/download`);
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new ApiError(
+      body?.detail || `İndirme başarısız: ${res.status}`,
+      res.status
+    );
+  }
+  const blob = await res.blob();
+  const disposition = res.headers.get("Content-Disposition");
+  let filename = `CVilator_optimized_${id}.pdf`;
+  if (disposition) {
+    const match = disposition.match(/filename="?([^"]+)"?/);
+    if (match) filename = match[1];
+  }
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}

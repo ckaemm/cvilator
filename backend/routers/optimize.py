@@ -2,13 +2,18 @@
 CVilator AI optimizasyon router'ı.
 
 Claude API kullanarak CV analizi ve optimizasyon endpoint'lerini içerir.
+PDF indirme endpoint'i de burada tanımlanmıştır.
 """
 
 import logging
+import os
+import tempfile
 from datetime import datetime, timezone
+from pathlib import Path
 
 import anthropic
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from models.database import CV, get_db
@@ -20,6 +25,7 @@ from schemas.cv import (
 )
 from services.ai_engine import analyze_cv_with_ai, generate_optimized_cv
 from services.ats_scorer import calculate_ats_score
+from services.pdf_generator import generate_pdf
 
 logger = logging.getLogger(__name__)
 
@@ -262,4 +268,73 @@ async def apply_suggestions(
         raise HTTPException(
             status_code=500,
             detail="Öneri uygulama sırasında beklenmeyen bir hata oluştu.",
+        ) from e
+
+
+@router.get("/{cv_id}/download")
+async def download_optimized_cv(
+    cv_id: int,
+    db: Session = Depends(get_db),
+) -> FileResponse:
+    """Optimize edilmiş CV'yi PDF olarak indirir.
+
+    Args:
+        cv_id: CV kaydının benzersiz ID'si.
+        db: Veritabanı oturumu.
+
+    Returns:
+        FileResponse: PDF dosyası.
+
+    Raises:
+        HTTPException 404: CV bulunamazsa.
+        HTTPException 400: Optimize edilmiş metin yoksa.
+        HTTPException 500: PDF oluşturulamazsa.
+    """
+    cv = db.query(CV).filter(CV.id == cv_id).first()
+    if cv is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"ID {cv_id} ile CV bulunamadı.",
+        )
+
+    # Optimize edilmiş metin veya orijinal metin kullan
+    text = cv.optimized_text or cv.raw_text
+    if not text:
+        raise HTTPException(
+            status_code=400,
+            detail="CV'de indirilebilir metin bulunamadı. Önce CV yükleyin ve analiz edin.",
+        )
+
+    try:
+        # Geçici dosyaya PDF oluştur
+        original_name = Path(cv.filename).stem
+        pdf_filename = f"CVilator_optimized_{original_name}.pdf"
+
+        # uploads dizinine kaydet (temizlik için)
+        output_dir = os.path.join(".", "uploads", "pdf")
+        os.makedirs(output_dir, exist_ok=True)
+        output_path = os.path.join(output_dir, f"cv_{cv_id}_{pdf_filename}")
+
+        generate_pdf(
+            optimized_text=text,
+            sections=cv.sections or {},
+            output_path=output_path,
+        )
+
+        logger.info("PDF indirildi: CV ID %d -> %s", cv_id, pdf_filename)
+
+        return FileResponse(
+            path=output_path,
+            filename=pdf_filename,
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": f'attachment; filename="{pdf_filename}"',
+            },
+        )
+
+    except Exception as e:
+        logger.exception("PDF oluşturma hatası: %s", str(e))
+        raise HTTPException(
+            status_code=500,
+            detail="PDF oluşturulurken bir hata oluştu.",
         ) from e
