@@ -3,12 +3,11 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, FileSearch, History, Menu, X, FileText } from "lucide-react";
+import { LayoutDashboard, FileSearch, Menu, X } from "lucide-react";
 
 const navItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/analyze", label: "Analiz Et", icon: FileSearch },
-  { href: "/history", label: "Geçmiş", icon: History },
 ];
 
 export function Sidebar() {
@@ -41,9 +40,20 @@ export function Sidebar() {
       >
         {/* Logo */}
         <div className="flex h-16 items-center justify-between px-6">
-          <Link href="/" className="flex items-center gap-2" onClick={() => setMobileOpen(false)}>
-            <FileText className="h-6 w-6 text-accent" />
-            <span className="text-lg font-bold text-text-primary">CVilator</span>
+          <Link href="/" className="flex items-center gap-2.5" onClick={() => setMobileOpen(false)}>
+            <svg width="28" height="28" viewBox="0 0 28 28" fill="none" className="shrink-0">
+              <rect width="28" height="28" rx="7" fill="url(#logo-grad)" />
+              <path d="M8 8h6v2H10v8h4v2H8V8zm6 0h6v12h-6v-2h4v-8h-4V8z" fill="#fff" />
+              <defs>
+                <linearGradient id="logo-grad" x1="0" y1="0" x2="28" y2="28">
+                  <stop stopColor="#2563EB" />
+                  <stop offset="1" stopColor="#7C3AED" />
+                </linearGradient>
+              </defs>
+            </svg>
+            <span className="text-lg font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+              CVilator
+            </span>
           </Link>
           <button
             onClick={() => setMobileOpen(false)}
@@ -57,7 +67,10 @@ export function Sidebar() {
         {/* Nav */}
         <nav className="flex-1 space-y-1 px-3 py-4">
           {navItems.map((item) => {
-            const isActive = pathname === item.href;
+            const isActive =
+              item.href === "/"
+                ? pathname === "/"
+                : pathname.startsWith(item.href);
             return (
               <Link
                 key={item.href}

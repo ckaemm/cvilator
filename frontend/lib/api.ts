@@ -86,6 +86,12 @@ export async function applySuggestions(
   });
 }
 
+export async function deleteCV(id: number): Promise<void> {
+  await request<{ message: string }>(`/api/cv/${id}`, {
+    method: "DELETE",
+  });
+}
+
 export async function downloadOptimizedCV(id: number): Promise<void> {
   const res = await fetch(`/api/optimize/${id}/download`);
   if (!res.ok) {
