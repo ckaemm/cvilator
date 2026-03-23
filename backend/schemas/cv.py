@@ -113,3 +113,83 @@ class JobDescriptionInput(BaseModel):
     job_description: str = Field(
         ..., min_length=10, description="İş ilanı metni"
     )
+
+
+# --- AI Optimizasyon Şemaları ---
+
+
+class RewrittenBullet(BaseModel):
+    """Yeniden yazılmış bullet point."""
+
+    original: str = Field(..., description="Orijinal bullet point")
+    improved: str = Field(..., description="İyileştirilmiş versiyon")
+
+
+class SectionFeedback(BaseModel):
+    """Bölüm bazlı AI geri bildirimi."""
+
+    section_name: str = Field(..., description="Bölüm adı")
+    current_quality: str = Field(..., description="Mevcut kalite (iyi/orta/zayıf)")
+    issues: list[str] = Field(default_factory=list, description="Tespit edilen sorunlar")
+    suggestions: list[str] = Field(default_factory=list, description="İyileştirme önerileri")
+    rewritten_bullets: list[RewrittenBullet] = Field(
+        default_factory=list, description="Yeniden yazılmış bullet point'ler"
+    )
+
+
+class KeywordPlacement(BaseModel):
+    """Keyword yerleştirme önerisi."""
+
+    keyword: str = Field(..., description="Eksik keyword")
+    suggestion: str = Field(..., description="Nereye, nasıl eklenmeli")
+
+
+class AIFeedback(BaseModel):
+    """Claude AI tarafından üretilen detaylı geri bildirim."""
+
+    overall_assessment: str = Field(..., description="Genel değerlendirme")
+    section_feedback: list[SectionFeedback] = Field(
+        default_factory=list, description="Bölüm bazlı geri bildirim"
+    )
+    missing_keywords: list[str] = Field(
+        default_factory=list, description="Eksik keyword'ler"
+    )
+    keyword_placement: list[KeywordPlacement] = Field(
+        default_factory=list, description="Keyword yerleştirme önerileri"
+    )
+    action_items: list[str] = Field(
+        default_factory=list, description="Öncelikli aksiyon öğeleri"
+    )
+    ats_tips: list[str] = Field(
+        default_factory=list, description="ATS uyumluluk ipuçları"
+    )
+
+
+class OptimizationResponse(BaseModel):
+    """Optimizasyon yanıt modeli (AI feedback + ATS skor birleşimi)."""
+
+    cv_id: int = Field(..., description="CV kaydının ID'si")
+    ats_score: ATSScoreResponse = Field(..., description="Kural tabanlı ATS skoru")
+    ai_feedback: AIFeedback = Field(..., description="Claude AI geri bildirimi")
+    optimization_count: int = Field(..., description="Toplam optimizasyon sayısı")
+
+
+class ApplySuggestionsInput(BaseModel):
+    """Uygulanacak önerilerin indeks listesi."""
+
+    accepted_suggestions: list[int] = Field(
+        ..., min_length=1, description="Kabul edilen öneri indeksleri"
+    )
+
+
+class OptimizedCVResponse(BaseModel):
+    """Optimize edilmiş CV yanıt modeli."""
+
+    cv_id: int = Field(..., description="CV kaydının ID'si")
+    optimized_text: str = Field(..., description="Optimize edilmiş CV metni")
+    optimized_sections: dict = Field(
+        default_factory=dict, description="Optimize edilmiş bölümler"
+    )
+    changes_made: list[str] = Field(
+        default_factory=list, description="Yapılan değişikliklerin listesi"
+    )

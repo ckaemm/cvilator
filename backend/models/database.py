@@ -55,6 +55,9 @@ class CV(Base):
     ats_score: int = Column(Integer, nullable=True)
     last_analysis: dict = Column(JSON, nullable=True)
     job_description: str = Column(Text, nullable=True)
+    ai_feedback: dict = Column(JSON, nullable=True)
+    optimized_text: str = Column(Text, nullable=True)
+    optimization_count: int = Column(Integer, default=0, nullable=False)
     created_at: datetime = Column(
         DateTime, default=lambda: datetime.now(timezone.utc), nullable=False
     )

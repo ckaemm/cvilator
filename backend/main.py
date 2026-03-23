@@ -18,6 +18,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from models.database import create_tables
 from routers.analyze import router as analyze_router
 from routers.cv import router as cv_router
+from routers.optimize import router as optimize_router
 
 # .env dosyasını yükle
 load_dotenv()
@@ -79,6 +80,7 @@ app.add_middleware(
 # Router'ları ekle
 app.include_router(cv_router, prefix="/api")
 app.include_router(analyze_router, prefix="/api")
+app.include_router(optimize_router, prefix="/api")
 
 
 @app.get("/", tags=["Root"])
