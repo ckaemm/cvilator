@@ -42,6 +42,52 @@ body {
   }
 }
 
+/* Score ring animation */
+@keyframes score-ring {
+  from {
+    stroke-dashoffset: var(--ring-circumference);
+  }
+  to {
+    stroke-dashoffset: var(--ring-target);
+  }
+}
+
+.score-ring-animated {
+  animation: score-ring 1.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+/* Staggered fade-in */
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-up {
+  opacity: 0;
+  animation: fade-in-up 0.5s ease-out forwards;
+}
+
+/* Accordion */
+.accordion-content {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.3s ease-out;
+}
+
+.accordion-content[data-open="true"] {
+  grid-template-rows: 1fr;
+}
+
+.accordion-inner {
+  overflow: hidden;
+}
+
 .skeleton {
   background: linear-gradient(
     90deg,

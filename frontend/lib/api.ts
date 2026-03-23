@@ -3,6 +3,8 @@ import type {
   CVListItem,
   CVDetail,
   ATSScoreResponse,
+  OptimizationResponse,
+  OptimizedCVResponse,
 } from "./types";
 
 class ApiError extends Error {
@@ -55,5 +57,31 @@ export async function analyzeCVWithJob(
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ job_description: jobDescription }),
+  });
+}
+
+export async function optimizeCV(
+  id: number,
+  jobDescription?: string
+): Promise<OptimizationResponse> {
+  const body: Record<string, string> = {};
+  if (jobDescription && jobDescription.trim().length >= 10) {
+    body.job_description = jobDescription.trim();
+  }
+  return request<OptimizationResponse>(`/api/optimize/${id}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+export async function applySuggestions(
+  id: number,
+  accepted: number[]
+): Promise<OptimizedCVResponse> {
+  return request<OptimizedCVResponse>(`/api/optimize/${id}/apply`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ accepted_suggestions: accepted }),
   });
 }
