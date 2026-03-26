@@ -12,7 +12,9 @@ const config: Config = {
       colors: {
         "bg-primary": "var(--bg-primary)",
         "bg-surface": "var(--bg-surface)",
+        "bg-hover": "var(--bg-hover)",
         "text-primary": "var(--text-primary)",
+        "text-secondary": "var(--text-secondary)",
         accent: "var(--accent)",
         success: "var(--success)",
         warning: "var(--warning)",

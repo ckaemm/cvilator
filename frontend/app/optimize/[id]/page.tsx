@@ -18,7 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { OptimizedPreview } from "@/components/optimized-preview";
-import { getCVDetail, applySuggestions, downloadOptimizedCV } from "@/lib/api";
+import { getCVDetail, optimizeCV, applySuggestions, downloadOptimizedCV } from "@/lib/api";
 import type { CVDetail, AIFeedback, SectionFeedback, RewrittenBullet } from "@/lib/types";
 
 interface Suggestion {
@@ -194,13 +194,13 @@ export default function OptimizePage() {
           return;
         }
 
-        if (!detail.ai_feedback) {
-          setError("Bu CV için AI analizi yapılmamış. Önce analiz sayfasından optimizasyon yapın.");
-          setLoading(false);
-          return;
-        }
+        let fb = detail.ai_feedback;
 
-        const fb = detail.ai_feedback;
+        if (!fb) {
+          // AI analizi yoksa otomatik çalıştır
+          const opt = await optimizeCV(detail.id);
+          fb = opt.ai_feedback;
+        }
         setFeedback(fb);
 
         const extracted = extractSuggestions(fb);

@@ -1,57 +1,35 @@
 """
 CVilator AI motoru.
 
-Claude API kullanarak CV analizi ve optimizasyonu yapar.
-Anthropic Python SDK ile entegre edilmiştir.
+Groq API kullanarak CV analizi ve optimizasyonu yapar.
 """
 
 import json
 import logging
 import os
-import time
 from typing import Any, Optional
 
-import anthropic
+from groq import Groq
 from dotenv import load_dotenv
 
 load_dotenv(override=True)
 
 logger = logging.getLogger(__name__)
 
-# Yapılandırma sabitleri
-MODEL_ID: str = "claude-sonnet-4-5"
+MODEL_ID: str = "llama-3.3-70b-versatile"
 MAX_TOKENS: int = 4096
-TIMEOUT_SECONDS: int = 30
-MAX_RETRIES: int = 3
-RETRY_BASE_DELAY: float = 1.0
-
-# API anahtarı kontrolü
-ANTHROPIC_API_KEY: str | None = os.getenv("ANTHROPIC_API_KEY")
 
 
-def _get_client() -> anthropic.Anthropic:
-    """Anthropic istemcisi oluşturur.
-
-    Returns:
-        anthropic.Anthropic: Yapılandırılmış API istemcisi.
-
-    Raises:
-        ValueError: API anahtarı ayarlanmamışsa.
-    """
-    api_key = os.getenv("ANTHROPIC_API_KEY")
+def _get_client() -> Groq:
+    """Groq istemcisi oluşturur."""
+    api_key = os.getenv("GROQ_API_KEY")
     if not api_key or api_key == "your-api-key-here":
         raise ValueError(
-            "ANTHROPIC_API_KEY ayarlanmamış. "
-            "Lütfen .env dosyasına geçerli bir API anahtarı ekleyin."
+            "GROQ_API_KEY ayarlanmamış. "
+            "Lütfen .env dosyasına console.groq.com'dan aldığınız API anahtarını ekleyin."
         )
-    return anthropic.Anthropic(
-        api_key=api_key,
-        timeout=TIMEOUT_SECONDS,
-        max_retries=MAX_RETRIES,
-    )
+    return Groq(api_key=api_key)
 
-
-# --- Sistem Promptları ---
 
 ANALYSIS_SYSTEM_PROMPT: str = """Sen bir ATS (Applicant Tracking System) CV uzmanısın.
 Verilen CV metnini ve bölümlerini analiz edip detaylı geri bildirim üreteceksin.
@@ -115,90 +93,42 @@ Kurallar:
 7. SADECE JSON formatında yanıt ver."""
 
 
-def _call_claude_api(
-    system_prompt: str,
-    user_message: str,
-) -> str:
-    """Claude API'ye istek gönderir ve yanıtı döndürür.
-
-    SDK'nın yerleşik retry mekanizmasını kullanır (429 ve 5xx hatalarını
-    otomatik olarak exponential backoff ile yeniden dener).
-
-    Args:
-        system_prompt: Sistem promptu.
-        user_message: Kullanıcı mesajı.
-
-    Returns:
-        str: Claude'un yanıt metni.
-
-    Raises:
-        ValueError: API anahtarı ayarlanmamışsa.
-        anthropic.APIError: API hatası oluşursa.
-    """
+def _call_groq_api(system_prompt: str, user_message: str) -> str:
+    """Groq API'ye istek gönderir ve yanıtı döndürür."""
     client = _get_client()
-
-    logger.info("Claude API'ye istek gönderiliyor (model: %s)...", MODEL_ID)
-
-    response = client.messages.create(
+    logger.info("Groq API'ye istek gönderiliyor (model: %s)...", MODEL_ID)
+    response = client.chat.completions.create(
         model=MODEL_ID,
-        max_tokens=MAX_TOKENS,
-        system=system_prompt,
         messages=[
-            {"role": "user", "content": user_message}
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_message},
         ],
+        max_tokens=MAX_TOKENS,
+        temperature=0.3,
     )
-
-    # Yanıt metnini çıkar
-    text_content = ""
-    for block in response.content:
-        if block.type == "text":
-            text_content += block.text
-
     logger.info(
-        "Claude API yanıtı alındı. Token kullanımı: input=%d, output=%d",
-        response.usage.input_tokens,
-        response.usage.output_tokens,
+        "Groq API yanıtı alındı. Token: input=%d, output=%d",
+        response.usage.prompt_tokens,
+        response.usage.completion_tokens,
     )
-
-    return text_content
+    return response.choices[0].message.content
 
 
 def _parse_json_response(response_text: str) -> dict[str, Any]:
-    """Claude yanıtından JSON ayrıştırır.
-
-    Yanıt bazen markdown code block içinde gelebilir,
-    bu durumda temizleme yapılır.
-
-    Args:
-        response_text: Claude'dan gelen ham yanıt metni.
-
-    Returns:
-        dict: Ayrıştırılmış JSON verisi.
-
-    Raises:
-        ValueError: JSON ayrıştırma başarısız olursa.
-    """
+    """Yanıttan JSON ayrıştırır."""
     text = response_text.strip()
-
-    # Markdown code block temizleme
     if text.startswith("```json"):
         text = text[7:]
     elif text.startswith("```"):
         text = text[3:]
-
     if text.endswith("```"):
         text = text[:-3]
-
     text = text.strip()
-
     try:
         return json.loads(text)
     except json.JSONDecodeError as e:
         logger.error("JSON ayrıştırma hatası: %s", str(e))
-        logger.debug("Ham yanıt: %s", response_text[:500])
-        raise ValueError(
-            f"Claude yanıtı geçerli JSON formatında değil: {str(e)}"
-        ) from e
+        raise ValueError(f"Yanıt geçerli JSON formatında değil: {str(e)}") from e
 
 
 def analyze_cv_with_ai(
@@ -206,26 +136,10 @@ def analyze_cv_with_ai(
     sections: dict[str, Any],
     job_description: Optional[str] = None,
 ) -> dict[str, Any]:
-    """CV'yi Claude AI ile analiz eder ve detaylı geri bildirim üretir.
-
-    Args:
-        raw_text: CV'nin ham metni.
-        sections: Ayrıştırılmış bölümler sözlüğü.
-        job_description: İş ilanı metni (opsiyonel).
-
-    Returns:
-        dict: AIFeedback şemasına uygun geri bildirim verisi.
-            Anahtarlar: overall_assessment, section_feedback,
-            missing_keywords, keyword_placement, action_items, ats_tips.
-
-    Raises:
-        ValueError: API anahtarı yoksa veya yanıt ayrıştırılamıyorsa.
-        anthropic.APIError: API hatası oluşursa.
-    """
-    # Kullanıcı mesajını oluştur
+    """CV'yi Groq AI ile analiz eder."""
     user_parts: list[str] = []
     user_parts.append("## CV Metni:\n")
-    user_parts.append(raw_text[:8000])  # Token limiti için kısalt
+    user_parts.append(raw_text[:8000])
 
     if sections:
         user_parts.append("\n\n## Tespit Edilen Bölümler:\n")
@@ -237,15 +151,9 @@ def analyze_cv_with_ai(
         user_parts.append("\n\n## Hedef İş İlanı:\n")
         user_parts.append(job_description[:3000])
 
-    user_message = "".join(user_parts)
-
-    # Claude API çağrısı
-    response_text = _call_claude_api(ANALYSIS_SYSTEM_PROMPT, user_message)
-
-    # JSON ayrıştırma
+    response_text = _call_groq_api(ANALYSIS_SYSTEM_PROMPT, "".join(user_parts))
     result = _parse_json_response(response_text)
 
-    # Varsayılan alanları garantile
     defaults: dict[str, Any] = {
         "overall_assessment": "",
         "section_feedback": [],
@@ -254,13 +162,11 @@ def analyze_cv_with_ai(
         "action_items": [],
         "ats_tips": [],
     }
-
     for key, default_value in defaults.items():
         if key not in result:
             result[key] = default_value
 
     logger.info("AI analizi tamamlandı. Bölüm sayısı: %d", len(result["section_feedback"]))
-
     return result
 
 
@@ -270,53 +176,25 @@ def generate_optimized_cv(
     feedback: dict[str, Any],
     accepted_suggestions: list[int],
 ) -> dict[str, Any]:
-    """Kabul edilen önerileri uygulayarak optimize edilmiş CV üretir.
-
-    Args:
-        raw_text: CV'nin orijinal ham metni.
-        sections: Ayrıştırılmış bölümler sözlüğü.
-        feedback: AI tarafından üretilen geri bildirim (AIFeedback formatı).
-        accepted_suggestions: Kabul edilen öneri indeksleri.
-
-    Returns:
-        dict: OptimizedCVResponse şemasına uygun veri.
-            Anahtarlar: optimized_text, optimized_sections, changes_made.
-
-    Raises:
-        ValueError: API anahtarı yoksa veya yanıt ayrıştırılamıyorsa.
-        anthropic.APIError: API hatası oluşursa.
-    """
-    # Kabul edilen önerileri derle
+    """Kabul edilen önerileri uygulayarak optimize edilmiş CV üretir."""
     accepted_items: list[str] = []
-
-    # section_feedback'ten önerileri topla
     suggestion_index = 0
+
     for section_fb in feedback.get("section_feedback", []):
         for suggestion in section_fb.get("suggestions", []):
             if suggestion_index in accepted_suggestions:
-                accepted_items.append(
-                    f"[{section_fb.get('section_name', 'Bilinmeyen')}] {suggestion}"
-                )
+                accepted_items.append(f"[{section_fb.get('section_name', 'Bilinmeyen')}] {suggestion}")
             suggestion_index += 1
-
         for bullet in section_fb.get("rewritten_bullets", []):
             if suggestion_index in accepted_suggestions:
-                original = bullet.get("original", "")
-                improved = bullet.get("improved", "")
-                accepted_items.append(
-                    f"Bullet değişikliği: '{original}' -> '{improved}'"
-                )
+                accepted_items.append(f"Bullet değişikliği: '{bullet.get('original', '')}' -> '{bullet.get('improved', '')}'")
             suggestion_index += 1
 
-    # keyword_placement önerilerini ekle
     for kp in feedback.get("keyword_placement", []):
         if suggestion_index in accepted_suggestions:
-            accepted_items.append(
-                f"Keyword ekle: {kp.get('keyword', '')} - {kp.get('suggestion', '')}"
-            )
+            accepted_items.append(f"Keyword ekle: {kp.get('keyword', '')} - {kp.get('suggestion', '')}")
         suggestion_index += 1
 
-    # action_items ekle
     for item in feedback.get("action_items", []):
         if suggestion_index in accepted_suggestions:
             accepted_items.append(f"Aksiyon: {item}")
@@ -329,7 +207,6 @@ def generate_optimized_cv(
             "changes_made": ["Hiçbir öneri kabul edilmedi, değişiklik yapılmadı."],
         }
 
-    # Kullanıcı mesajını oluştur
     user_parts: list[str] = []
     user_parts.append("## Orijinal CV Metni:\n")
     user_parts.append(raw_text[:8000])
@@ -344,28 +221,17 @@ def generate_optimized_cv(
     for i, item in enumerate(accepted_items, 1):
         user_parts.append(f"{i}. {item}\n")
 
-    user_message = "".join(user_parts)
-
-    # Claude API çağrısı
-    response_text = _call_claude_api(OPTIMIZATION_SYSTEM_PROMPT, user_message)
-
-    # JSON ayrıştırma
+    response_text = _call_groq_api(OPTIMIZATION_SYSTEM_PROMPT, "".join(user_parts))
     result = _parse_json_response(response_text)
 
-    # Varsayılan alanları garantile
     defaults: dict[str, Any] = {
         "optimized_text": raw_text,
         "optimized_sections": sections or {},
         "changes_made": [],
     }
-
     for key, default_value in defaults.items():
         if key not in result:
             result[key] = default_value
 
-    logger.info(
-        "CV optimizasyonu tamamlandı. Yapılan değişiklik sayısı: %d",
-        len(result["changes_made"]),
-    )
-
+    logger.info("CV optimizasyonu tamamlandı. Değişiklik sayısı: %d", len(result["changes_made"]))
     return result

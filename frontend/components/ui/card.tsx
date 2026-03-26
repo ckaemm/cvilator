@@ -5,7 +5,7 @@ interface CardProps extends HTMLAttributes<HTMLDivElement> {}
 function Card({ className = "", ...props }: CardProps) {
   return (
     <div
-      className={`rounded-xl border border-slate-700/50 bg-bg-surface shadow-lg ${className}`}
+      className={`rounded-2xl border border-white/5 bg-bg-surface transition-all duration-200 hover:scale-[1.02] hover:shadow-lg hover:shadow-black/20 ${className}`}
       {...props}
     />
   );
@@ -16,11 +16,11 @@ function CardHeader({ className = "", ...props }: CardProps) {
 }
 
 function CardTitle({ className = "", ...props }: CardProps) {
-  return <h3 className={`text-lg font-semibold text-text-primary ${className}`} {...props} />;
+  return <h3 className={`text-lg font-bold text-white ${className}`} {...props} />;
 }
 
 function CardDescription({ className = "", ...props }: CardProps) {
-  return <p className={`mt-1 text-sm text-slate-400 ${className}`} {...props} />;
+  return <p className={`mt-1 text-sm text-text-secondary ${className}`} {...props} />;
 }
 
 function CardContent({ className = "", ...props }: CardProps) {

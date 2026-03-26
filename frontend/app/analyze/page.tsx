@@ -8,7 +8,6 @@ import { CVUpload } from "@/components/cv-upload";
 import { JobDescriptionInput } from "@/components/job-description-input";
 import { ATSScoreCard } from "@/components/ats-score-card";
 import { CriteriaBreakdown } from "@/components/criteria-breakdown";
-import { KeywordAnalysis } from "@/components/keyword-analysis";
 import { SectionFeedbackList } from "@/components/section-feedback";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -291,10 +290,6 @@ function AnalyzePageContent() {
             summary={atsResult.summary}
           />
           <CriteriaBreakdown criteria={atsResult.criteria} />
-          <KeywordAnalysis
-            keywordMatch={atsResult.keyword_match}
-            hasJobDescription={jobDescription.trim().length >= 10}
-          />
         </div>
       )}
 

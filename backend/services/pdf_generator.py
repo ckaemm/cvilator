@@ -25,14 +25,14 @@ from reportlab.lib.colors import HexColor
 logger = logging.getLogger(__name__)
 
 # Türkçe karakter desteği için font kaydı
-_font_registered = False
+_registered_font_name: str | None = None
 
 
 def _register_fonts() -> str:
     """Türkçe destekli fontları kaydeder. Kullanılabilir font adını döndürür."""
-    global _font_registered
-    if _font_registered:
-        return "DejaVuSans"
+    global _registered_font_name
+    if _registered_font_name is not None:
+        return _registered_font_name
 
     # DejaVu Sans genellikle Linux'ta, Windows'ta da yüklenebilir
     font_paths = [
@@ -61,9 +61,9 @@ def _register_fonts() -> str:
             pdfmetrics.registerFont(TTFont("DejaVuSans", regular_path))
             if bold_path:
                 pdfmetrics.registerFont(TTFont("DejaVuSans-Bold", bold_path))
-            _font_registered = True
+            _registered_font_name = "DejaVuSans"
             logger.info("DejaVu Sans fontları kaydedildi: %s", regular_path)
-            return "DejaVuSans"
+            return _registered_font_name
         except Exception as e:
             logger.warning("DejaVu Sans kaydedilemedi: %s", e)
 
@@ -75,16 +75,16 @@ def _register_fonts() -> str:
             pdfmetrics.registerFont(TTFont("ArialTR", arial_path))
             if os.path.exists(arial_bold):
                 pdfmetrics.registerFont(TTFont("ArialTR-Bold", arial_bold))
-            _font_registered = True
+            _registered_font_name = "ArialTR"
             logger.info("Arial fontları kaydedildi (fallback)")
-            return "ArialTR"
+            return _registered_font_name
         except Exception as e:
             logger.warning("Arial kaydedilemedi: %s", e)
 
     # Son çare: Helvetica (Türkçe sınırlı ama ATS uyumlu)
     logger.warning("TTFont bulunamadı, Helvetica kullanılacak (Türkçe sınırlı)")
-    _font_registered = True
-    return "Helvetica"
+    _registered_font_name = "Helvetica"
+    return _registered_font_name
 
 
 def _build_styles(font_name: str) -> dict:

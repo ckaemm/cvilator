@@ -16,11 +16,21 @@ class ApiError extends Error {
   }
 }
 
+function extractErrorMessage(detail: unknown, status: number): string {
+  if (typeof detail === "string") return detail;
+  if (Array.isArray(detail)) {
+    return detail
+      .map((d) => (typeof d === "object" && d !== null && "msg" in d ? d.msg : String(d)))
+      .join("; ");
+  }
+  return `İstek başarısız: ${status}`;
+}
+
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
   const res = await fetch(url, options);
   if (!res.ok) {
     const body = await res.json().catch(() => null);
-    const message = body?.detail || `İstek başarısız: ${res.status}`;
+    const message = extractErrorMessage(body?.detail, res.status);
     throw new ApiError(message, res.status);
   }
   return res.json();
@@ -64,14 +74,13 @@ export async function optimizeCV(
   id: number,
   jobDescription?: string
 ): Promise<OptimizationResponse> {
-  const body: Record<string, string> = {};
-  if (jobDescription && jobDescription.trim().length >= 10) {
-    body.job_description = jobDescription.trim();
-  }
+  const hasJob = jobDescription && jobDescription.trim().length >= 10;
   return request<OptimizationResponse>(`/api/optimize/${id}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
+    body: hasJob
+      ? JSON.stringify({ job_description: jobDescription.trim() })
+      : undefined,
   });
 }
 

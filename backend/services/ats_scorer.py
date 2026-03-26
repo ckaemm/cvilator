@@ -191,19 +191,27 @@ def _score_keywords(
             "keyword_match": {"found": [], "missing": [], "match_rate": 0.0},
         }
 
-    # Keyword listesini belirle
-    if job_description and job_description.strip():
-        keywords = extract_keywords(job_description)
-        # Çok fazla keyword varsa en önemli 25'ini al
-        keywords = keywords[:25]
-    else:
-        keywords = DEFAULT_KEYWORDS
+    # İş ilanı yoksa keyword analizi yapma
+    if not job_description or not job_description.strip():
+        return {
+            "score": None, "max_score": 25,
+            "feedback": "İş ilanı girilmediğinden keyword analizi yapılmadı.",
+            "details": ["Keyword analizi için iş ilanı metni girin."],
+            "keyword_match": {"found": [], "missing": [], "match_rate": 0.0},
+        }
+
+    keywords = extract_keywords(job_description)
+    keywords = keywords[:25]
 
     if not keywords:
-        keywords = DEFAULT_KEYWORDS
+        return {
+            "score": None, "max_score": 25,
+            "feedback": "İş ilanından keyword çıkarılamadı.",
+            "details": ["Yeterli keyword bulunamadı."],
+            "keyword_match": {"found": [], "missing": [], "match_rate": 0.0},
+        }
 
     raw_lower = raw_text.lower()
-
     found: list[str] = []
     missing: list[str] = []
 
@@ -635,24 +643,37 @@ def calculate_ats_score(
     length_result = _score_length(raw_text, sections)
     consistency_result = _score_consistency(raw_text, sections)
 
+    # Keyword atlandı mı?
+    keyword_skipped = keyword_result["score"] is None
+
+    keyword_criteria = {
+        "name": "Keyword Eşleşme",
+        "score": keyword_result["score"] if not keyword_skipped else 0,
+        "max_score": keyword_result["max_score"],
+        "feedback": keyword_result["feedback"],
+        "details": keyword_result["details"],
+    }
+
     # Kriter listesi oluştur
     criteria = [
         {"name": "Format Uyumu", **format_result},
         {"name": "Bölüm Tamlığı", **section_result},
-        {
-            "name": "Keyword Eşleşme",
-            "score": keyword_result["score"],
-            "max_score": keyword_result["max_score"],
-            "feedback": keyword_result["feedback"],
-            "details": keyword_result["details"],
-        },
+        keyword_criteria,
         {"name": "Eylem Fiilleri", **verb_result},
         {"name": "Ölçülebilir Başarılar", **measurable_result},
         {"name": "Uzunluk & Yoğunluk", **length_result},
         {"name": "Hata & Tutarlılık", **consistency_result},
     ]
 
-    total_score = sum(c["score"] for c in criteria)
+    if keyword_skipped:
+        # Keyword hariç kalan 75 puan üzerinden 100'e ölçekle
+        other_score = sum(
+            c["score"] for c in criteria if c["name"] != "Keyword Eşleşme"
+        )
+        total_score = round(other_score / 75 * 100)
+    else:
+        total_score = sum(c["score"] for c in criteria)
+
     total_score = min(100, max(0, total_score))
 
     grade = _calculate_grade(total_score)

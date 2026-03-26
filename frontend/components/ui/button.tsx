@@ -10,10 +10,10 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const variantStyles: Record<Variant, string> = {
-  default: "bg-accent text-white hover:bg-blue-700",
-  outline: "border border-slate-600 text-slate-200 hover:bg-bg-surface hover:border-slate-500",
-  ghost: "text-slate-300 hover:bg-bg-surface hover:text-white",
-  danger: "bg-danger text-white hover:bg-red-700",
+  default: "bg-blue-600 text-white hover:bg-blue-700",
+  outline: "border border-white/10 text-gray-200 hover:bg-bg-hover hover:border-white/20",
+  ghost: "text-gray-300 hover:bg-white/5 hover:text-white",
+  danger: "bg-danger text-white hover:bg-red-600",
 };
 
 const sizeStyles: Record<Size, string> = {
@@ -28,7 +28,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       <button
         ref={ref}
         disabled={disabled || loading}
-        className={`inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-colors
+        className={`inline-flex items-center justify-center gap-2 rounded-xl font-medium transition-all duration-200
           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-primary
           disabled:opacity-50 disabled:pointer-events-none
           ${variantStyles[variant]} ${sizeStyles[size]} ${className}`}

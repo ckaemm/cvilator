@@ -7,11 +7,13 @@ PDF indirme endpoint'i de burada tanımlanmıştır.
 
 import logging
 import os
+import re
 import tempfile
+import unicodedata
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Optional
 
-import anthropic
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
@@ -35,7 +37,7 @@ router = APIRouter(prefix="/optimize", tags=["Optimize"])
 @router.post("/{cv_id}", response_model=OptimizationResponse)
 async def optimize_cv(
     cv_id: int,
-    body: JobDescriptionInput,
+    body: Optional[JobDescriptionInput] = None,
     db: Session = Depends(get_db),
 ) -> OptimizationResponse:
     """CV'yi AI ile analiz eder ve optimizasyon önerileri sunar.
@@ -72,18 +74,20 @@ async def optimize_cv(
                 detail="CV'de metin bulunamadı. Lütfen geçerli bir CV yükleyin.",
             )
 
+        job_desc = body.job_description if body else ""
+
         # 1. Kural tabanlı ATS skorlaması
         ats_result = calculate_ats_score(
             raw_text=cv.raw_text,
             sections=cv.sections or {},
-            job_description=body.job_description,
+            job_description=job_desc,
         )
 
         # 2. Claude AI analizi
         ai_feedback = analyze_cv_with_ai(
             raw_text=cv.raw_text,
             sections=cv.sections or {},
-            job_description=body.job_description,
+            job_description=job_desc,
         )
 
         # 3. Optimizasyon sayacını artır
@@ -92,7 +96,7 @@ async def optimize_cv(
         # 4. Sonuçları DB'ye kaydet
         cv.ats_score = ats_result["total_score"]
         cv.last_analysis = ats_result
-        cv.job_description = body.job_description
+        cv.job_description = job_desc or None
         cv.ai_feedback = ai_feedback
         cv.updated_at = datetime.now(timezone.utc)
         db.commit()
@@ -118,38 +122,6 @@ async def optimize_cv(
         raise HTTPException(
             status_code=503,
             detail=str(e),
-        ) from e
-    except anthropic.BadRequestError as e:
-        logger.error("Claude API bad request hatası: %s", str(e))
-        error_msg = str(e)
-        if "credit balance" in error_msg.lower():
-            detail = "Anthropic hesabında yeterli kredi yok. Lütfen Plans & Billing sayfasından kredi yükleyin."
-        else:
-            detail = f"Claude API istek hatası: {error_msg}"
-        raise HTTPException(status_code=402, detail=detail) from e
-    except anthropic.AuthenticationError as e:
-        logger.error("Claude API kimlik doğrulama hatası: %s", str(e))
-        raise HTTPException(
-            status_code=503,
-            detail="Claude API anahtarı geçersiz. Lütfen .env dosyasını kontrol edin.",
-        ) from e
-    except anthropic.RateLimitError as e:
-        logger.error("Claude API rate limit hatası: %s", str(e))
-        raise HTTPException(
-            status_code=429,
-            detail="Claude API istek limiti aşıldı. Lütfen birkaç dakika bekleyin.",
-        ) from e
-    except anthropic.APIStatusError as e:
-        logger.error("Claude API hatası (status %d): %s", e.status_code, str(e))
-        raise HTTPException(
-            status_code=503,
-            detail="Claude API geçici olarak kullanılamıyor. Lütfen tekrar deneyin.",
-        ) from e
-    except anthropic.APIConnectionError as e:
-        logger.error("Claude API bağlantı hatası: %s", str(e))
-        raise HTTPException(
-            status_code=503,
-            detail="Claude API'ye bağlanılamadı. İnternet bağlantınızı kontrol edin.",
         ) from e
     except Exception as e:
         logger.exception("CV optimizasyonu sırasında hata oluştu: %s", str(e))
@@ -239,30 +211,6 @@ async def apply_suggestions(
             status_code=503,
             detail=str(e),
         ) from e
-    except anthropic.AuthenticationError as e:
-        logger.error("Claude API kimlik doğrulama hatası: %s", str(e))
-        raise HTTPException(
-            status_code=503,
-            detail="Claude API anahtarı geçersiz. Lütfen .env dosyasını kontrol edin.",
-        ) from e
-    except anthropic.RateLimitError as e:
-        logger.error("Claude API rate limit hatası: %s", str(e))
-        raise HTTPException(
-            status_code=429,
-            detail="Claude API istek limiti aşıldı. Lütfen birkaç dakika bekleyin.",
-        ) from e
-    except anthropic.APIStatusError as e:
-        logger.error("Claude API hatası (status %d): %s", e.status_code, str(e))
-        raise HTTPException(
-            status_code=503,
-            detail="Claude API geçici olarak kullanılamıyor. Lütfen tekrar deneyin.",
-        ) from e
-    except anthropic.APIConnectionError as e:
-        logger.error("Claude API bağlantı hatası: %s", str(e))
-        raise HTTPException(
-            status_code=503,
-            detail="Claude API'ye bağlanılamadı. İnternet bağlantınızı kontrol edin.",
-        ) from e
     except Exception as e:
         logger.exception("Öneri uygulama sırasında hata oluştu: %s", str(e))
         raise HTTPException(
@@ -308,7 +256,12 @@ async def download_optimized_cv(
     try:
         # Geçici dosyaya PDF oluştur
         original_name = Path(cv.filename).stem
-        pdf_filename = f"CVilator_optimized_{original_name}.pdf"
+        # Türkçe ve özel karakterleri ASCII'ye çevir
+        ascii_name = unicodedata.normalize("NFKD", original_name)
+        ascii_name = ascii_name.encode("ascii", "ignore").decode("ascii")
+        ascii_name = re.sub(r"[^\w\s-]", "", ascii_name).strip()
+        ascii_name = re.sub(r"\s+", "_", ascii_name) or "cv"
+        pdf_filename = f"CVilator_optimized_{ascii_name}.pdf"
 
         # uploads dizinine kaydet (temizlik için)
         output_dir = os.path.join(".", "uploads", "pdf")

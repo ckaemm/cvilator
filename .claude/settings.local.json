@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pip install:*)",
+      "Bash(pkill -f \"uvicorn\\\\|python.*main\")",
+      "Bash(find /c/Users/ckaem/Desktop/cvilator/backend -name \"*.pyc\" -delete)",
+      "Bash(find /c/Users/ckaem/Desktop/cvilator/backend -name \"__pycache__\" -type d -exec rm -rf {} +)",
+      "Bash(taskkill //F //IM python.exe)",
+      "Bash(taskkill //F //IM python3.exe)",
+      "Bash(python -c \":*)",
+      "Bash(uvicorn main:app --reload --port 8000)",
+      "Bash(npm run:*)",
+      "Bash(npx next:*)"
+    ]
+  }
+}
